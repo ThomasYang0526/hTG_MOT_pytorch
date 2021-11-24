@@ -7,11 +7,14 @@ Created on Tue Nov 23 12:25:59 2021
 """
 import config
 import torch
-import torch.nn as nn
+# import torch.nn as nn
 
 def Loss(pred, gt):
     gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_tid, gt_tid_mask, gt_tid_1d_idx = gt
-    heatmap, reg, wh, embed = torch.split(pred[0], [1, 2, 2, config.heads["embed"]], dim=1)
+    heatmap, reg, wh, embed = torch.split(pred[0], [config.heads["heatmap"], 
+                                                    config.heads["reg"], 
+                                                    config.heads["wh"], 
+                                                    config.heads["embed"]], dim=1)
     pred_tid_1d_idx = pred[1]
     
     # Heatmap Focal Loss

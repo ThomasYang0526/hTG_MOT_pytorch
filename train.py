@@ -29,12 +29,12 @@ epoch_steps = len(dataset)//config.batch_size
 model = MyResNet50().cuda()
 optim = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 scheduler = StepLR(optim, epoch_steps, gamma=0.96)
-
 writer = SummaryWriter('logs')
 
 for epoch in range(config.epochs):
+    torch.save(model.state_dict(), './saved_model/resnet50FPN_256_epoch_{}.pth'.format(epoch))
     for step, train_data in enumerate(dataloader):
-        # print(scheduler.get_last_lr()[0])
+
         ST = time.time()
         train_data = [i.to(device) for i in train_data]
         images, gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_tid, gt_tid_mask, tid_1d_idx = train_data     
@@ -66,3 +66,19 @@ for epoch in range(config.epochs):
                                                                                                                                     loss[3].item(),
                                                                                                                                     loss[4].item(),
                                                                                                                                     ET-ST,))
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

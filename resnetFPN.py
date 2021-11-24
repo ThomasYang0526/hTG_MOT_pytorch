@@ -121,8 +121,8 @@ if __name__ == '__main__':
         if step == 0:
             break
     
-    x = torch.ones((1,3,416,416)).cuda()
-    tid = torch.ones((1, 100)).cuda()
+    # x = torch.ones((1,3,416,416)).cuda()
+    # tid = torch.ones((1, 100)).cuda()
     model = MyResNet50().cuda()
     y = model(image, tid_1d_idx)
 

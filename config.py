@@ -8,6 +8,8 @@ Created on Mon Nov 22 17:50:38 2021
 
 import os
 
+classes_label = {"person": 0}
+
 batch_size = 24
 epochs = 10
 learning_rate = 1e-3
@@ -17,7 +19,6 @@ max_boxes_per_image = 100
 downsampling_ratio = 4
 
 num_classes = 1
-max_boxes_per_image = 100
 tid_classes = 13385
 # tid_classes = 55
 
@@ -33,3 +34,7 @@ train_data_dir = '/home/thomas_yang/ML/hTG_MOT_pytorch/txt_file/'
 train_data_list = os.listdir(train_data_dir)
 train_data_list.sort()
 train_data_list = [train_data_dir + i for i in train_data_list]
+
+top_K = 50
+score_threshold = 0.3
+
