@@ -111,7 +111,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
    
     device = torch.device('cuda')
-    path = '/home/thomas_yang/ML/hTC_MOT/txt_file/pose_detection/mot16_02.txt'    
+    path = '/home/thomas_yang/ML/hTG_MOT_pytorch/txt_file/mot16_02.txt'    
     dataset = Mydata(path)    
     dataloader = DataLoader(dataset=dataset, batch_size=1, num_workers=0)
     
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     model = MyResNet50().cuda()
     y = model(image, tid_1d_idx)
 
-    # dummy_input = torch.randn(1, 3, 416, 416, device="cuda")
-    # input_names = [ "actual_input_1" ]
-    # output_names = [ "output1" ]
-    # torch.onnx.export(model, dummy_input, "model.onnx", verbose=True, input_names=input_names, output_names=output_names)
+    dummy_input = torch.randn(1, 3, 416, 416, device="cuda")
+    input_names = [ "actual_input_1" , "tid_input"]
+    output_names = [ "output1" ]
+    torch.onnx.export(model, dummy_input, "model.onnx", verbose=True, input_names=input_names, output_names=output_names)

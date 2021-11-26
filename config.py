@@ -10,9 +10,12 @@ import os
 
 classes_label = {"person": 0}
 
+finetune = True
+finetune_load_epoch = 9
+
 batch_size = 24
 epochs = 10
-learning_rate = 1e-3
+learning_rate = 5e-4
 
 get_image_size = (416, 416)
 max_boxes_per_image = 100

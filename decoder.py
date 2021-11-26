@@ -76,10 +76,14 @@ def Decoder(pred, original_image_size):
         bboxes[:, :, 1::2] = torch.clip(bboxes[:, :, 1::2], 0, original_image_size[0])
         
         score_mask = scores >= score_threshold        
-        bboxes = bboxes[score_mask.expand(score_mask.shape[0], score_mask.shape[1], bboxes.shape[-1])].reshape(-1, bboxes.shape[-1]).cpu().detach().numpy()
-        scores = scores[score_mask.expand(score_mask.shape[0], score_mask.shape[1], scores.shape[-1])].reshape(-1, scores.shape[-1]).cpu().detach().numpy().reshape(-1)
-        clses = clses[score_mask.expand(score_mask.shape[0], score_mask.shape[1], clses.shape[-1])].reshape(-1, clses.shape[-1]).cpu().detach().numpy().reshape(-1)
-        embed_tmp = embed_tmp[score_mask.expand(score_mask.shape[0], score_mask.shape[1], embed_tmp.shape[-1])].reshape(-1, embed_tmp.shape[-1]).cpu().detach().numpy()
-                
-        return [bboxes, scores, clses, embed_tmp, heatmap_nms, ys, xs]
+        bboxes = bboxes[score_mask.expand(score_mask.shape[0], score_mask.shape[1], bboxes.shape[-1])].reshape(-1, bboxes.shape[-1])
+        scores = scores[score_mask.expand(score_mask.shape[0], score_mask.shape[1], scores.shape[-1])].reshape(-1, scores.shape[-1])
+        clses = clses[score_mask.expand(score_mask.shape[0], score_mask.shape[1], clses.shape[-1])].reshape(-1, clses.shape[-1])
+        embed_tmp = embed_tmp[score_mask.expand(score_mask.shape[0], score_mask.shape[1], embed_tmp.shape[-1])].reshape(-1, embed_tmp.shape[-1])
+        # bboxes = bboxes[score_mask.expand(score_mask.shape[0], score_mask.shape[1], bboxes.shape[-1])].reshape(-1, bboxes.shape[-1]).cpu().detach().numpy()
+        # scores = scores[score_mask.expand(score_mask.shape[0], score_mask.shape[1], scores.shape[-1])].reshape(-1, scores.shape[-1]).cpu().detach().numpy().reshape(-1)
+        # clses = clses[score_mask.expand(score_mask.shape[0], score_mask.shape[1], clses.shape[-1])].reshape(-1, clses.shape[-1]).cpu().detach().numpy().reshape(-1)
+        # embed_tmp = embed_tmp[score_mask.expand(score_mask.shape[0], score_mask.shape[1], embed_tmp.shape[-1])].reshape(-1, embed_tmp.shape[-1]).cpu().detach().numpy()        
+        
+        return [bboxes, scores, clses, embed_tmp]
 

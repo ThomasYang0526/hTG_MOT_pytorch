@@ -17,6 +17,7 @@ from loss import Loss
 from torch.utils.tensorboard import SummaryWriter
 from utils.show_traing_val_image import show_traing_val_image
 from torch.optim.lr_scheduler import StepLR
+import datetime
 
 device = torch.device('cuda')
 dataset = Mydata(config.train_data_list[0])
@@ -27,9 +28,12 @@ dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size, num_worke
 
 epoch_steps = len(dataset)//config.batch_size
 model = MyResNet50().cuda()
+if config.finetune:
+    model.load_state_dict(torch.load('./saved_model/resnet50FPN_256_epoch_{}.pth'.format(config.finetune_load_epoch)))
+
 optim = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 scheduler = StepLR(optim, epoch_steps, gamma=0.96)
-writer = SummaryWriter('logs')
+writer = SummaryWriter('logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
 for epoch in range(config.epochs):
     torch.save(model.state_dict(), './saved_model/resnet50FPN_256_epoch_{}.pth'.format(epoch))
