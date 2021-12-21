@@ -34,6 +34,11 @@ class BaseTrack(object):
     @staticmethod
     def next_id():
         BaseTrack._count += 1
+        print('BaseTrack._count', BaseTrack._count)
+        return BaseTrack._count
+
+    def reset_id():
+        BaseTrack._count = 0
         return BaseTrack._count
 
     def activate(self, *args):

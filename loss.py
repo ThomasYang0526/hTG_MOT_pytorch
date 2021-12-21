@@ -7,7 +7,7 @@ Created on Tue Nov 23 12:25:59 2021
 """
 import config
 import torch
-# import torch.nn as nn
+import torch.nn as nn
 
 def Loss(pred, gt):
     gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_tid, gt_tid_mask, gt_tid_1d_idx = gt
@@ -18,40 +18,42 @@ def Loss(pred, gt):
     pred_tid_1d_idx = pred[1]
     
     # Heatmap Focal Loss
-    # loss_fcn = nn.BCEWithLogitsLoss()
-    # gamma=1.5
-    # alpha=0.25
-    # reduction = loss_fcn.reduction
-    # loss_fcn.reduction = 'none'  # required to apply FL to each element
+    loss_fcn = nn.BCEWithLogitsLoss()
+    gamma=1.5
+    alpha=0.25
+    reduction = loss_fcn.reduction
+    loss_fcn.reduction = 'none'  # required to apply FL to each element
 
-    # loss_heatmap = loss_fcn(heatmap, gt_heatmap)
-    # pred_prob = torch.sigmoid(heatmap)  # prob from logits
-    # p_t = gt_heatmap * pred_prob + (1 - gt_heatmap) * (1 - pred_prob)
-    # alpha_factor = gt_heatmap * alpha + (1 - gt_heatmap) * (1 - alpha)
-    # modulating_factor = (1.0 - p_t) ** gamma
-    # loss_heatmap *= alpha_factor * modulating_factor
+    loss_heatmap = loss_fcn(heatmap, gt_heatmap)
+    pred_prob = torch.sigmoid(heatmap)  # prob from logits
+    p_t = gt_heatmap * pred_prob + (1 - gt_heatmap) * (1 - pred_prob)
+    alpha_factor = gt_heatmap * alpha + (1 - gt_heatmap) * (1 - alpha)
+    modulating_factor = (1.0 - p_t) ** gamma
+    loss_heatmap *= alpha_factor * modulating_factor
+
+    loss_heatmap = loss_heatmap.sum()
 
     # if reduction == 'mean':
     #     loss_heatmap = loss_heatmap.mean()    
 
-    pred_prob = torch.sigmoid(heatmap)
-    pos_mask = (torch.eq(gt_heatmap, 1.0))
-    neg_mask = (torch.less(gt_heatmap, 1.0))
-    neg_weights = torch.pow(1. - gt_heatmap, 4)
-    # neg_weights = tf.where(K.equal(neg_weights, 1.), 0.00000001, neg_weights)
+    # pred_prob = torch.sigmoid(heatmap)
+    # pos_mask = (torch.eq(gt_heatmap, 1.0))
+    # neg_mask = (torch.less(gt_heatmap, 1.0))
+    # neg_weights = torch.pow(1. - gt_heatmap, 4)
+    # # neg_weights = tf.where(K.equal(neg_weights, 1.), 0.00000001, neg_weights)
    
-    pos_loss = torch.log(torch.clip(pred_prob, 1e-5, 1. - 1e-5)) * torch.pow(1. - pred_prob, 2) * pos_mask
-    neg_loss = torch.log(torch.clip(1. - pred_prob, 1e-5, 1. - 1e-5)) * torch.pow(pred_prob, 2.0) * neg_weights * neg_mask
+    # pos_loss = torch.log(torch.clip(pred_prob, 1e-5, 1. - 1e-5)) * torch.pow(1. - pred_prob, 2) * pos_mask
+    # neg_loss = torch.log(torch.clip(1. - pred_prob, 1e-5, 1. - 1e-5)) * torch.pow(pred_prob, 2.0) * neg_weights * neg_mask
 
-    num_pos = torch.sum(pos_mask)
-    pos_loss = torch.sum(pos_loss) * 1.
-    neg_loss = torch.sum(neg_loss) * 1.
+    # num_pos = torch.sum(pos_mask)
+    # pos_loss = torch.sum(pos_loss) * 1.
+    # neg_loss = torch.sum(neg_loss) * 1.
     
-    loss_heatmap = 0
-    if num_pos == 0:
-        loss_heatmap = loss_heatmap - neg_loss
-    else:
-        loss_heatmap = loss_heatmap - (pos_loss + neg_loss) / num_pos
+    # loss_heatmap = 0
+    # if num_pos == 0:
+    #     loss_heatmap = loss_heatmap - neg_loss
+    # else:
+    #     loss_heatmap = loss_heatmap - (pos_loss + neg_loss) / num_pos
     
     # return loss  
 

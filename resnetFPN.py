@@ -46,8 +46,9 @@ class MyResNet50(ResNet):
         self.bn_embed = BatchNorm2d(config.bif)
         self.relu_embed = ReLU()
         self.conv_embed_2 = Conv2d(config.bif, config.heads["embed"], 1, padding=(0, 0), bias=False)
-        
-        self.conv_reID = Conv2d(config.bif, config.tid_classes, 1, padding=(0, 0), bias=False)
+        self.conv_reID = Conv2d(config.heads["embed"], config.tid_classes, 1, padding=(0, 0), bias=False)
+        # self.conv_embed_2_512 = Conv2d(config.bif, config.heads["embed"], 1, padding=(0, 0), bias=False)
+        # self.conv_reID_512 = Conv2d(config.heads["embed"], config.tid_classes, 1, padding=(0, 0), bias=False)
         self.softmax = Softmax(dim=1)
         
     def forward(self, x, tid):
@@ -87,7 +88,8 @@ class MyResNet50(ResNet):
         tid_embed = self.conv_embed_1(p2_output)
         tid_embed = self.bn_embed(tid_embed)
         tid_embed = self.relu_embed(tid_embed)
-        tid_embed = self.conv_embed_2(tid_embed)   
+        tid_embed = self.conv_embed_2(tid_embed)
+        # tid_embed = self.conv_embed_2_512(tid_embed)
         
         tmp = torch.permute(tid_embed, (0, 2, 3, 1))
         tmp = torch.reshape(tmp, shape=(tmp.shape[0], -1, tmp.shape[-1]))
@@ -99,6 +101,7 @@ class MyResNet50(ResNet):
         tmp = torch.permute(tmp, (0, 3, 1, 2))
         
         tid = self.conv_reID(tmp)
+        # tid = self.conv_reID_512(tmp)
         tid = self.softmax(tid)
         tid = tid.squeeze(2)
         tid = torch.permute(tid, (0, 2, 1))
@@ -109,6 +112,8 @@ if __name__ == '__main__':
  
     from dataloader import Mydata
     from torch.utils.data import DataLoader
+    # import os
+    # os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
    
     device = torch.device('cuda')
     path = '/home/thomas_yang/ML/hTG_MOT_pytorch/txt_file/mot16_02.txt'    
@@ -123,10 +128,14 @@ if __name__ == '__main__':
     
     # x = torch.ones((1,3,416,416)).cuda()
     # tid = torch.ones((1, 100)).cuda()
-    model = MyResNet50().cuda()
+    model = MyResNet50().cuda().eval()
+    if config.finetune:
+        model.load_state_dict(torch.load('./saved_model/resnet50FPN_256_epoch_{}.pth'.format(config.finetune_load_epoch)), strict = False)
     y = model(image, tid_1d_idx)
 
-    dummy_input = torch.randn(1, 3, 416, 416, device="cuda")
-    input_names = [ "actual_input_1" , "tid_input"]
+    # dummy_input = torch.randn(1, 3, 416, 416, device="cuda")
+    dummy_input1 = torch.randn(1, 3, 416, 416, device="cuda")
+    dummy_input2 = torch.ones(1, 100, device="cuda")
+    input_names = [ "actual_input_1", "tid_input"]
     output_names = [ "output1" ]
-    torch.onnx.export(model, dummy_input, "model.onnx", verbose=True, input_names=input_names, output_names=output_names)
+    torch.onnx.export(model, (dummy_input1, dummy_input2), "model.onnx", verbose=True, input_names=input_names, output_names=output_names)

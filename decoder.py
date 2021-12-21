@@ -22,7 +22,7 @@ def Decoder(pred, original_image_size):
                                                         config.heads["embed"]], dim=1)
         
         # __topK
-        batch_size = heatmap.shape[0]
+        # batch_size = heatmap.shape[0]
         heatmap = torch.sigmoid(heatmap)
         heatmap2 = torch.nn.MaxPool2d((7, 7), stride=(1, 1), padding=(3, 3), dilation=1, return_indices=False, ceil_mode=False)(heatmap)
         keep = torch.eq(heatmap, heatmap2).type(torch.float32)
@@ -46,15 +46,15 @@ def Decoder(pred, original_image_size):
         reg_tmp = torch.gather(tmp, 1, idx)
         
 
-        xs = torch.reshape(xs, shape=(batch_size, config.top_K, 1)) + reg_tmp[:, :, 0:1]
-        ys = torch.reshape(ys, shape=(batch_size, config.top_K, 1)) + reg_tmp[:, :, 1:2]
+        xs = torch.reshape(xs, shape=(B, config.top_K, 1)) + reg_tmp[:, :, 0:1]
+        ys = torch.reshape(ys, shape=(B, config.top_K, 1)) + reg_tmp[:, :, 1:2]
 
         tmp = torch.permute(wh, (0, 2, 3, 1))
         tmp = torch.reshape(tmp, shape=(tmp.shape[0], -1, tmp.shape[-1]))
         wh_tmp = torch.gather(tmp, 1, idx)
 
-        clses = torch.reshape(clses, (batch_size, config.top_K, 1)).type(torch.float32)
-        scores = torch.reshape(scores, (batch_size, config.top_K, 1))
+        clses = torch.reshape(clses, (B, config.top_K, 1)).type(torch.float32)
+        scores = torch.reshape(scores, (B, config.top_K, 1))
 
         bboxes = torch.cat([xs - wh_tmp[..., 0:1] / 2,
                             ys - wh_tmp[..., 1:2] / 2,

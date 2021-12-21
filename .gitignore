@@ -10,3 +10,5 @@ logs/
 saved_model/
 
 *.onnx
+
+tracker_outputs/

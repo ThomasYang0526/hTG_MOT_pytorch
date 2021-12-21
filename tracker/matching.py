@@ -131,8 +131,7 @@ def fuse_motion(kf, cost_matrix, tracks, detections, only_position=False, lambda
     gating_threshold = kalman_filter.chi2inv95[gating_dim]
     measurements = np.asarray([det.to_xyah() for det in detections])
     for row, track in enumerate(tracks):
-        gating_distance = kf.gating_distance(
-            track.mean, track.covariance, measurements, only_position, metric='maha')
+        gating_distance = kf.gating_distance(track.mean, track.covariance, measurements, only_position, metric='maha')
         cost_matrix[row, gating_distance > gating_threshold] = np.inf
         cost_matrix[row] = lambda_ * cost_matrix[row] + (1 - lambda_) * gating_distance
     return cost_matrix

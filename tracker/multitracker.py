@@ -106,8 +106,7 @@ class STrack(BaseTrack):
         self.tracklet_len += 1
 
         new_tlwh = new_track.tlwh
-        self.mean, self.covariance = self.kalman_filter.update(
-            self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
+        self.mean, self.covariance = self.kalman_filter.update(self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
         self.state = TrackState.Tracked
         self.is_activated = True
 
@@ -166,7 +165,7 @@ class STrack(BaseTrack):
 
 
 class JDETracker(object):
-    def __init__(self, frame_rate=30):
+    def __init__(self, frame_rate=30, is_embed=True):
 
         device = torch.device('cuda')
         
@@ -181,57 +180,25 @@ class JDETracker(object):
         self.removed_stracks = []  # type: list[STrack]
 
         self.frame_id = 0
-        self.det_thresh = 0.4
-        self.buffer_size = int(frame_rate / 30.0 * 30)
+        self.det_thresh = 0.3
+        self.buffer_size = int(frame_rate / 30.0 * 90)
         self.max_time_lost = self.buffer_size
         self.max_per_image = 100
-        self.mean = np.array([0,0,0], dtype=np.float32).reshape(1, 1, 3)
-        self.std = np.array([1, 1, 1], dtype=np.float32).reshape(1, 1, 3)
 
         self.kalman_filter = KalmanFilter()
-
-    # def post_process(self, dets, meta):
-    #     dets = dets.detach().cpu().numpy()
-    #     dets = dets.reshape(1, -1, dets.shape[2])
-    #     dets = ctdet_post_process(
-    #         dets.copy(), [meta['c']], [meta['s']],
-    #         meta['out_height'], meta['out_width'], self.opt.num_classes)
-    #     for j in range(1, self.opt.num_classes + 1):
-    #         dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 5)
-    #     return dets[0]
-
-    def merge_outputs(self, detections):
-        results = {}
-        for j in range(1, self.opt.num_classes + 1):
-            results[j] = np.concatenate(
-                [detection[j] for detection in detections], axis=0).astype(np.float32)
-
-        scores = np.hstack(
-            [results[j][:, 4] for j in range(1, self.opt.num_classes + 1)])
-        if len(scores) > self.max_per_image:
-            kth = len(scores) - self.max_per_image
-            thresh = np.partition(scores, kth)[kth]
-            for j in range(1, self.opt.num_classes + 1):
-                keep_inds = (results[j][:, 4] >= thresh)
-                results[j] = results[j][keep_inds]
-        return results
+        self.is_embed = is_embed   
+        STrack.reset_id()
 
     def update(self, im_blob, img0):
+        
+        # img0: original image
+        # im_blob: normalize + resize + channel shuffle image
+        
         self.frame_id += 1
         activated_starcks = []
         refind_stracks = []
         lost_stracks = []
         removed_stracks = []
-
-        width = img0.shape[1]
-        height = img0.shape[0]
-        inp_height = im_blob.shape[2]
-        inp_width = im_blob.shape[3]
-        # c = np.array([width / 2., height / 2.], dtype=np.float32)
-        # s = max(float(inp_width) / float(inp_height) * height, width) * 1.0
-        # meta = {'c': c, 's': s,
-        #         'out_height': inp_height // self.opt.down_ratio,
-        #         'out_width': inp_width // self.opt.down_ratio}
 
         ''' Step 1: Network forward, get detections & embeddings'''
         with torch.no_grad():
@@ -240,46 +207,44 @@ class JDETracker(object):
         id_feature = F.normalize(id_feature, dim=1)
         id_feature = id_feature.cpu().numpy()        
         dets = torch.cat([bboxes, scores], dim=1).detach().cpu().numpy()
-        # print(id_feature.ndim)
+        # print('================================================--------------------', self.frame_id)
+        # print('dets', dets)
+        # print('id_feature', id_feature) # 256 dimension
 
-        # vis
-        '''
-        for i in range(0, dets.shape[0]):
-            bbox = dets[i][0:4]
-            cv2.rectangle(img0, (bbox[0], bbox[1]),
-                          (bbox[2], bbox[3]),
-                          (0, 255, 0), 2)
-        cv2.imshow('dets', img0)
-        cv2.waitKey(0)
-        id0 = id0-1
-        '''
-
-        if len(dets) > 0:
-            '''Detections'''
-            detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
-                          (tlbrs, f) in zip(dets[:, :5], id_feature)]
+        '''Detections'''
+        if len(dets) > 0:            
+            detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for (tlbrs, f) in zip(dets[:, :5], id_feature)]
         else:
             detections = []
+        # print('detections', detections)
 
         ''' Add newly detected tracklets to tracked_stracks'''
+        # print('**self.tracked_stracks', self.tracked_stracks)
         unconfirmed = []
         tracked_stracks = []  # type: list[STrack]
         for track in self.tracked_stracks:
+            # print(track.is_activated)
             if not track.is_activated:
                 unconfirmed.append(track)
             else:
                 tracked_stracks.append(track)
+        # print('tracked_stracks', tracked_stracks)
 
         ''' Step 2: First association, with embedding'''
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
-        # Predict the current location with KF
-        #for strack in strack_pool:
-            #strack.predict()
         STrack.multi_predict(strack_pool)
-        dists = matching.embedding_distance(strack_pool, detections)
-        #dists = matching.iou_distance(strack_pool, detections)
-        dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.4)
+        
+        if self.is_embed:
+            dists = matching.embedding_distance(strack_pool, detections) #餘弦距離
+        else:
+            dists = matching.iou_distance(strack_pool, detections)
+        dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections) #馬式距離？
+        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=1.5)
+
+        # print('strack_pool', strack_pool, len(strack_pool))                
+        # print('matches', matches)
+        # print('u_track', u_track)
+        # print('u_detection', u_detection)
 
         for itracked, idet in matches:
             track = strack_pool[itracked]
@@ -290,12 +255,16 @@ class JDETracker(object):
             else:
                 track.re_activate(det, self.frame_id, new_id=False)
                 refind_stracks.append(track)
-
+        
         ''' Step 3: Second association, with IOU'''
         detections = [detections[i] for i in u_detection]
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
-        dists = matching.iou_distance(r_tracked_stracks, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
+        
+        if self.is_embed:
+            dists = matching.embedding_distance(r_tracked_stracks, detections)
+        else:
+            dists = matching.iou_distance(r_tracked_stracks, detections)
+        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=1.5)
 
         for itracked, idet in matches:
             track = r_tracked_stracks[itracked]
@@ -307,6 +276,7 @@ class JDETracker(object):
                 track.re_activate(det, self.frame_id, new_id=False)
                 refind_stracks.append(track)
 
+        # print('r_tracked_stracks', r_tracked_stracks)
         for it in u_track:
             track = r_tracked_stracks[it]
             if not track.state == TrackState.Lost:
@@ -315,7 +285,11 @@ class JDETracker(object):
 
         '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
         detections = [detections[i] for i in u_detection]
-        dists = matching.iou_distance(unconfirmed, detections)
+        if self.is_embed:
+            dists = matching.embedding_distance(unconfirmed, detections)
+        else:
+            dists = matching.iou_distance(unconfirmed, detections)
+            
         matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
         for itracked, idet in matches:
             unconfirmed[itracked].update(detections[idet], self.frame_id)
@@ -325,13 +299,15 @@ class JDETracker(object):
             track.mark_removed()
             removed_stracks.append(track)
 
-        """ Step 4: Init new stracks"""
+        """ Step 4: Init new stracks"""        
         for inew in u_detection:
             track = detections[inew]
+            print('u_detection', track)
             if track.score < self.det_thresh:
                 continue
             track.activate(self.kalman_filter, self.frame_id)
             activated_starcks.append(track)
+        
         """ Step 5: Update state"""
         for track in self.lost_stracks:
             if self.frame_id - track.end_frame > self.max_time_lost:
@@ -399,3 +375,10 @@ def remove_duplicate_stracks(stracksa, stracksb):
     resa = [t for i, t in enumerate(stracksa) if not i in dupa]
     resb = [t for i, t in enumerate(stracksb) if not i in dupb]
     return resa, resb
+
+
+if __name__ == '__main__':
+    a = STrack([100,100,30,50], 0.8, np.ones((1, 100)))
+    print(a)
+
+

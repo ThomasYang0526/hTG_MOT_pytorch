@@ -21,7 +21,8 @@ import datetime
 if __name__ == '__main__':
  
     # result_filename 
-    save_dir='./tracker_outputs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    time_tag = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_dir='./tracker_outputs/' + time_tag
     show_image=True 
     frame_rate=30 
     use_cuda=True
@@ -42,10 +43,19 @@ if __name__ == '__main__':
     video_5 = 'vlc-record-2021-04-22-16h23m28s-rtsp___192.168.102.3_8554_fhd-.mp4'
     video_6 = 'vlc-record-2021-04-22-16h31m33s-rtsp___192.168.102.3_8554_fhd-.mp4'
     video_7 = 'vlc-record-2021-04-22-17h02m58s-rtsp___192.168.102.3_8554_fhd-.mp4'
+
+    # video_path = '/home/thomas_yang/ML/datasets/RaiseHand/vlc-record-2021-12-11-15h28m12s-rtsp___10.10.0.5_28554_fhd-'
+    # video_1 = 'vlc-record-2021-12-11-15h23m44s-rtsp___10.10.0.5_28554_fhd-.mp4'
+    # video_2 = 'vlc-record-2021-12-11-15h24m59s-rtsp___10.10.0.5_28554_fhd-.mp4'
+    # video_3 = 'vlc-record-2021-12-11-15h28m12s-rtsp___10.10.0.5_28554_fhd-.mp4'
     
-    cap = cv2.VideoCapture(os.path.join(video_path, video_7))
+    video_path = '/home/thomas_yang/ML/datasets/TestVideo'
+    video_1 = 'Street_1.mp4'
+    
+    cap = cv2.VideoCapture(os.path.join(video_path, video_1))
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     # half_point = length//8.8
+    # half_point = length//2
     # cap.set(cv2.CAP_PROP_POS_FRAMES, half_point)
 
     while cap.isOpened():
@@ -62,13 +72,13 @@ if __name__ == '__main__':
         img = cv2.resize(img0, config.get_image_size)[...,::-1]
         img = img / 255.
         img = img.transpose(2, 0, 1).astype(np.float32)    
+        
         # run tracking
         timer.tic()
-        if use_cuda:
-            blob = torch.from_numpy(img).cuda().unsqueeze(0)
-        else:
-            blob = torch.from_numpy(img).unsqueeze(0)
+        blob = torch.from_numpy(img).cuda().unsqueeze(0)
+
         online_targets = tracker.update(blob, img0)
+        print('online_targets', online_targets)
         online_tlwhs = []
         online_ids = []
         #online_scores = []
@@ -85,26 +95,24 @@ if __name__ == '__main__':
         # save results
         results.append((frame_id + 1, online_tlwhs, online_ids))
         #results.append((frame_id + 1, online_tlwhs, online_ids, online_scores))
-        if show_image or save_dir is not None:
-            online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=frame_id,
-                                          fps=1. / timer.average_time)
-        if show_image:
-            cv2.imshow('online_im', online_im)
-        if save_dir is not None:
-            cv2.imwrite(os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), online_im)
+        
+        online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=frame_id, fps=1. / timer.average_time)    
+        cv2.imshow('online_im', online_im)
+        cv2.imwrite(os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), online_im)
         frame_id += 1
+        # if frame_id == 4:
+            # break
         
         if cv2.waitKey(1) == ord('q'):
-            break
-    
+            break    
     cv2.destroyAllWindows()
     
     import pickle 
-    with open('results.pkl', 'wb') as f:
+    with open('/home/thomas_yang/ML/hTG_MOT_pytorch/tracker_outputs/%s_results.pkl' %time_tag, 'wb') as f:
         pickle.dump(results, f)
  
-    with open('results.pkl', 'rb') as f:
-        a = pickle.load(f)
+    # with open('results.pkl', 'rb') as f:
+    #     a = pickle.load(f)
     
 
 

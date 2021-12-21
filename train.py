@@ -28,15 +28,18 @@ dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size, num_worke
 
 epoch_steps = len(dataset)//config.batch_size
 model = MyResNet50().cuda()
+
+load_weights_from_epoch = config.finetune_load_epoch
 if config.finetune:
-    model.load_state_dict(torch.load('./saved_model/resnet50FPN_256_epoch_{}.pth'.format(config.finetune_load_epoch)))
+    model.load_state_dict(torch.load('./saved_model/resnet50FPN_256_epoch_{}.pth'.format(load_weights_from_epoch)), strict = False)
+else:
+    load_weights_from_epoch = -1
 
 optim = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 scheduler = StepLR(optim, epoch_steps, gamma=0.96)
 writer = SummaryWriter('logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
-for epoch in range(config.epochs):
-    torch.save(model.state_dict(), './saved_model/resnet50FPN_256_epoch_{}.pth'.format(epoch))
+for epoch in range(load_weights_from_epoch + 1, config.epochs):    
     for step, train_data in enumerate(dataloader):
 
         ST = time.time()
@@ -70,7 +73,7 @@ for epoch in range(config.epochs):
                                                                                                                                     loss[3].item(),
                                                                                                                                     loss[4].item(),
                                                                                                                                     ET-ST,))
-    
+    torch.save(model.state_dict(), './saved_model/resnet50FPN_256_epoch_{}.pth'.format(epoch))
         
         
         
